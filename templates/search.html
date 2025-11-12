@@ -1,0 +1,92 @@
+{% extends "layout.html" %}
+
+{% block title %}馬名検索{% endblock %}
+
+{% block content %}
+<style>
+  .list-group-item-action:hover {
+    background-color: #e9ecef; /* Bootstrapのデフォルトより少し濃い色 */
+    cursor: pointer;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important; /* 浮き上がる効果 */
+    transform: translateY(-2px); /* 少し上に移動 */
+    transition: all 0.2s ease-in-out; /* 滑らかなアニメーション */
+  }
+  .list-group-item-action a {
+    color: inherit; /* 親要素の色を継承 */
+    text-decoration: none; /* 下線をなくす */
+  }
+  .list-group-item-action a:hover {
+    text-decoration: none; /* ホバー時も下線をなくす */
+  }
+</style>
+<div class="row justify-content-center">
+  <div class="col-md-8 col-lg-6">
+    <header class="text-center mb-4">
+      <h1 class="h2">現役馬 検索</h1>
+      <p class="text-muted">
+        馬名を入力して、データベース内の現役馬を検索します。
+      </p>
+    </header>
+
+    <div class="mb-3">
+      <input type="text" class="form-control form-control-lg" id="search-box" placeholder="例: ディープインパクト" autocomplete="off">
+    </div>
+
+    <div id="search-results">
+      <!-- Search results will be dynamically inserted here by JavaScript -->
+    </div>
+  </div>
+</div>
+
+<script>
+  // Simple debouncing function
+  function debounce(func, delay) {
+    let timeout;
+    return function(...args) {
+      const context = this;
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func.apply(context, args), delay);
+    };
+  }
+
+  const searchBox = document.getElementById('search-box');
+  const searchResults = document.getElementById('search-results');
+
+  const performSearch = debounce(async (query) => {
+    if (query.length < 2) {
+      searchResults.innerHTML = '';
+      return;
+    }
+
+    // Add a loading indicator
+    searchResults.innerHTML = '<div class="text-center mt-3"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+
+    try {
+      const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+      if (!response.ok) {
+        throw new Error('Search failed');
+      }
+      const horses = await response.json();
+      
+      if (horses.length === 0) {
+        searchResults.innerHTML = '<div class="alert alert-warning mt-3">「' + query + '」に一致する馬は見つかりませんでした。</div>';
+        return;
+      }
+
+      let resultsHtml = '<ul class="list-group mt-3">';
+      horses.forEach(horse => {
+        resultsHtml += `<li class="list-group-item list-group-item-action"><a href="/artifact/${horse.id}" class="text-decoration-none text-dark d-block">${horse.name}</a></li>`;
+      });
+      resultsHtml += '</ul>';
+      searchResults.innerHTML = resultsHtml;
+
+    } catch (error) {
+      searchResults.innerHTML = '<div class="alert alert-danger mt-3">検索中にエラーが発生しました。</div>';
+    }
+  }, 300);
+
+  searchBox.addEventListener('input', (e) => {
+    performSearch(e.target.value);
+  });
+</script>
+{% endblock %}
